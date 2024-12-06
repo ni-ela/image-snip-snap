@@ -1,50 +1,70 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { Message, responseStatusMapping } from "../utils/Message";
-import { AxiosError } from 'axios'
+import { NextApiRequest, NextApiResponse } from 'next'
+import axios from 'axios';
+import formidable from 'formidable';
+import fs from 'fs';
+import FormData from 'form-data';
 
-type Data = {
-  binary: string;
-  status: number;
+export const config = {
+  api: {
+    bodyParser: false,
+  },
 };
 
-export default function handler(
+export default async function handler(
   request: NextApiRequest,
-  response: NextApiResponse<Data>,
+  response: NextApiResponse
 ) {
-  const { functionName } = request.body
 
-  const functionMap: { [key: string]: Function } = {
-    sendBinaryImage: sendBinaryImage,
-    getBinaryImage: getBinaryImage,
-  };
+  const form = formidable({});
+  let fields;
+  let files;
+  [fields, files] = await form.parse(request);
 
-  const func = functionMap[functionName];
-
-  if (func) {
-    return func(request, response);
-  } else {
-    return response.send({ status: 200, binary: "" });
+  if (!files || !files['file']) {
+    return response.status(400).json({ status: 400, message: "Arquivo não encontrado" });
   }
+
+  const file = files['file'][0];
+  const functionName = fields.functionName as unknown as string;
+  const filePath = file.filepath;
+
+  if (!functionName) {
+    return response.status(400).json({ status: 400, binary: "functionName is required" });
+  }
+
+  sendBinaryImage(filePath, response);
 }
 
 async function sendBinaryImage(
-  request: NextApiRequest,
-  response: NextApiResponse<Data>,
+  filePath: string,
+  response: NextApiResponse
 ) {
-  const buffers: Buffer[] = [];
-  for await (const chunk of request) {
-    buffers.push(chunk);
+  try {
+
+    if (!filePath) {
+      return response.status(400).json({ status: 400, message: "Arquivo não encontrado" });
+    }
+
+    const formData = new FormData();
+    formData.append('image_file', fs.createReadStream(filePath));
+    formData.append('size', 'auto');
+
+    const apiKey = '';
+    const url = 'https://api.remove.bg/v1.0/removebg';
+
+    const result = await axios.post(url, formData, {
+      headers: {
+        'X-API-Key': apiKey,
+        ...formData.getHeaders()
+      },
+      responseType: 'arraybuffer'
+    });
+
+     fs.writeFileSync('no-bg.png', result.data);
+
+     return response.status(200).json({ status: 200, message: "Imagem enviada com sucesso", binary: result.data });
+  } catch (error) {
+    console.error("Erro ao enviar imagem em binário", error);
+    return response.status(500).json({ status: 500, message: "Erro ao processar a imagem" });
   }
-  const fileBuffer = Buffer.concat(buffers);
-}
-
-function getBinaryImage() {
-}
-
-export function formatErrorMessage(error: AxiosError) {
-  let status = Number((error).response?.status)
-  if (!status) return { status: 500, message: 'Houve um erro ao processar binário da imagem' }
-  let message = responseStatusMapping[status] ?? Message('serverError')
-
-  return { status, message }
 }

@@ -2,9 +2,9 @@ import React, { useState, createRef } from "react";
 import Cropper, { ReactCropperElement } from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import styles from "@/styles/Home.module.css";
+import localImage from "@/../public/sobre-a-mesa.png";
 
-const defaultSrc =
-  "https://raw.githubusercontent.com/roadmanfong/react-cropper/master/example/img/child.jpg";
+const defaultSrc = localImage.src;
 
 export const CropperJS: React.FC = () => {
   const [image, setImage] = useState(defaultSrc);
@@ -13,11 +13,17 @@ export const CropperJS: React.FC = () => {
   const onChange = (e: any) => {
     e.preventDefault();
     let files;
+
     if (e.dataTransfer) {
       files = e.dataTransfer.files;
     } else if (e.target) {
       files = e.target.files;
     }
+
+    if (!files[0]) {
+      return
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       setImage(reader.result as any);
@@ -27,19 +33,49 @@ export const CropperJS: React.FC = () => {
 
   const getCropData = () => {
     if (typeof cropperRef.current?.cropper !== "undefined") {
-      setCropData(cropperRef.current?.cropper.getCroppedCanvas().toDataURL());
+      cropperRef.current?.cropper.getCroppedCanvas().toBlob((blob) => {
+        if (blob) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            setCropData(reader.result as any);
+          };
+          reader.readAsArrayBuffer(blob);
+        }
+      });
     }
   };
+
+  const sendImage = () => {
+    getCropData();
+
+    if (cropData) {
+      const formData = new FormData();
+      formData.append('file', new Blob([cropData]), 'cropped-image');
+      formData.append('functionName', 'sendBinaryImage');
+
+      fetch('/api/image', {
+        method: 'POST',
+        body: formData,
+      })
+        .then((response) => {
+          if (response.ok) {
+            console.log("Imagem enviada com sucesso");
+          } else {
+            console.log("Não foi possível enviar a imagem");
+          }
+
+          console.log(response);
+        })
+        .catch((error) => {
+          console.error("Erro:", error);
+        });
+    }
+  }
 
   return (
     <div>
       <div style={{ width: "100%" }}>
-        <input type="file" onChange={onChange} />
-        <button>Use default img</button>
-        <br />
-        <br />
         <Cropper
-          className={styles.box}
           ref={cropperRef}
           style={{ height: 400, width: "100%" }}
           zoomTo={0.5}
@@ -56,29 +92,30 @@ export const CropperJS: React.FC = () => {
           guides={true}
         />
       </div>
-      <div>
-        <div className={styles.box} style={{ width: "50%", float: "right" }}>
-          <h1>Preview</h1>
+      <div className={styles.menu}>
+        <div className={styles.box}>
+          <h3 className={styles.topic}>Trecho selecionado da imagem</h3>
           <div
-          className={styles.imgPreview}
-            style={{ width: "100%", float: "left", height: "300px" }}
+            className="img-preview"
+            style={{ width: "100%", height: "300px", overflow: "hidden" }}
           />
         </div>
-        <div
-          className="box"
-          style={{ width: "50%", float: "right", height: "300px" }}
-        >
-          <h1>
-            <span>Crop</span>
-            <button style={{ float: "right" }} onClick={getCropData}>
-              Crop Image
+        <div className="box">
+          <h3 className={styles.topic}>Opções</h3>
+          <div className={styles.groupButtons}>
+            <button className={styles.button} onClick={(e) => setImage(defaultSrc)}>Usar imagem padrão</button>
+            <button
+              className={styles.uploadImgButton}>
+              <input className={styles.uploadInput} type="file" onChange={onChange} />
+              Substituir imagem</button>
+
+            <button onClick={sendImage} className={styles.button}>
+              Enviar imagem
             </button>
-          </h1>
-          <img style={{ width: "100%" }} src={cropData} alt="cropped" />
+          </div>
         </div>
       </div>
-      <br style={{ clear: "both" }} />
-    </div>
+    </div >
   );
 };
 
