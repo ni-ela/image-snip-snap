@@ -3,13 +3,16 @@ import Cropper, { ReactCropperElement } from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import styles from "@/styles/Home.module.css";
 import localImage from "@/../public/sobre-a-mesa.png";
+import { fetchImage } from "@/utils/fetchImage";
 
 const defaultSrc = localImage.src;
 
 export const CropperJS: React.FC = () => {
   const [image, setImage] = useState(defaultSrc);
+  const [newImage, setNewImage] = useState("");
   const [cropData, setCropData] = useState("#");
   const cropperRef = createRef<ReactCropperElement>();
+  
   const onChange = (e: any) => {
     e.preventDefault();
     let files;
@@ -50,30 +53,24 @@ export const CropperJS: React.FC = () => {
 
     if (cropData) {
       const formData = new FormData();
+
       formData.append('file', new Blob([cropData]), 'cropped-image');
-      formData.append('functionName', 'sendBinaryImage');
+      formData.append('file', new Blob([image]), 'original-image');
 
-      fetch('/api/image', {
-        method: 'POST',
-        body: formData,
+      fetchImage(formData).then((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          setNewImage(url);
+        }
       })
-        .then((response) => {
-          if (response.ok) {
-            console.log("Imagem enviada com sucesso");
-          } else {
-            console.log("Não foi possível enviar a imagem");
-          }
-
-          console.log(response);
-        })
-        .catch((error) => {
-          console.error("Erro:", error);
-        });
+      .catch((error) => {
+        console.error("Erro:", error);
+      });;
     }
   }
 
   return (
-    <div>
+    <div style={{ textAlign: 'center'}}>
       <div style={{ width: "100%" }}>
         <Cropper
           ref={cropperRef}
@@ -115,6 +112,14 @@ export const CropperJS: React.FC = () => {
           </div>
         </div>
       </div>
+        {
+          newImage && (
+            <div className={styles.box} style={{marginTop: '40px'}}>
+              <h3 className={styles.topic}>Imagem sem fundo</h3>
+              <img src={newImage} alt="Imagem sem fundo" />
+            </div>
+          )
+        }
     </div >
   );
 };

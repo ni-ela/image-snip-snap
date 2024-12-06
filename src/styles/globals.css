@@ -30,9 +30,10 @@ body {
   margin: 0;
 }
 
-a {
-  color: inherit;
+button {
+  border: none;
   text-decoration: none;
+  cursor: pointer;
 }
 
 @media (prefers-color-scheme: dark) {
