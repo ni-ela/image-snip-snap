@@ -25,24 +25,12 @@ export default async function handler(
   }
 
   const file = files['file'][0];
-  const functionName = fields.functionName as unknown as string;
   const filePath = file.filepath;
 
-  if (!functionName) {
-    return response.status(400).json({ status: 400, binary: "functionName is required" });
-  }
-
-  sendBinaryImage(filePath, response);
-}
-
-async function sendBinaryImage(
-  filePath: string,
-  response: NextApiResponse
-) {
   try {
 
     if (!filePath) {
-      return response.status(400).json({ status: 400, message: "Arquivo não encontrado" });
+      return response.status(400).json({ status: 400, message: "Url de arquivo não encontrado" });
     }
 
     const formData = new FormData();
@@ -58,11 +46,9 @@ async function sendBinaryImage(
         ...formData.getHeaders()
       },
       responseType: 'arraybuffer'
-    });
-
-     fs.writeFileSync('no-bg.png', result.data);
-
-     return response.status(200).json({ status: 200, message: "Imagem enviada com sucesso", binary: result.data });
+    }); 
+    response.setHeader('Content-Type', 'image/png');
+    response.send(result.data);
   } catch (error) {
     console.error("Erro ao enviar imagem em binário", error);
     return response.status(500).json({ status: 500, message: "Erro ao processar a imagem" });

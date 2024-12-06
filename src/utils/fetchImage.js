@@ -5,7 +5,7 @@ export function fetchImage(formData) {
     })
         .then((response) => {
             if (response.ok) {
-                console.log("Imagem enviada com sucesso");
+                console.info("Imagem enviada com sucesso");
                 return response.blob();
             } else {
                 console.error("Não foi possível enviar a imagem");
